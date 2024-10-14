@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -ex
+set -ex
 # By @doomedraven - https://twitter.com/D00m3dR4v3n
 # Copyright (C) 2011-2023 doomedraven.
 # See the file 'LICENSE.md' for copying permission.
@@ -671,8 +671,11 @@ function install_suricata() {
         cp "/var/lib/suricata/rules/"* "/etc/suricata/rules/"
     fi
 
-    # ToDo this is not the best solution but i don't have time now to investigate proper one
-    sed -i 's|CapabilityBoundingSet=CAP_NET_ADMIN|#CapabilityBoundingSet=CAP_NET_ADMIN|g' /lib/systemd/system/suricata.service
+    # Ubuntu 22.04 install suricata under init.d which doesn't have a service file
+    if [ -f /lib/systemd/system/suricata.service ]; then
+        # ToDo this is not the best solution but i don't have time now to investigate proper one
+        sed -i 's|CapabilityBoundingSet=CAP_NET_ADMIN|#CapabilityBoundingSet=CAP_NET_ADMIN|g' /lib/systemd/system/suricata.service
+    fi
     systemctl daemon-reload
 
     #change suricata yaml
@@ -942,6 +945,8 @@ function dependencies() {
 
     install_postgresql
 
+    sudo -u postgres -H sh -c "psql -c \"DROP DATABASE IF EXISTS ${USER}\"";
+    sudo -u postgres -H sh -c "psql -c \"DROP USER IF EXISTS ${USER}\"";
     sudo -u postgres -H sh -c "psql -c \"CREATE USER ${USER} WITH PASSWORD '$PASSWD'\"";
     sudo -u postgres -H sh -c "psql -c \"CREATE DATABASE ${USER}\"";
     sudo -u postgres -H sh -c "psql -d \"${USER}\" -c \"GRANT ALL PRIVILEGES ON DATABASE ${USER} to ${USER};\""
@@ -1187,9 +1192,55 @@ EOF
     sudo -u clamav /usr/sbin/clamav-unofficial-sigs
 }
 
+function install_PolarProxy() {
+    echo "[+] Installing PolarProxy"
+
+    cd "/opt/CAPEv2/" || return
+
+    if [ ! -d PolarProxy ]; then
+        mkdir PolarProxy
+    fi
+
+    cd PolarProxy
+    curl -o PolarProxy.tar.gz https://www.netresec.com/?download=PolarProxy
+    tar xf PolarProxy.tar.gz
+    chmod a+x PolarProxy
+    chmod 666 /opt/CAPEv2/PolarProxy/PolarProxy-key-crt.p12
+
+    local KEY_PEM=PolarProxy-key.pem
+    local CRT_PEM=PolarProxy-crt.pem
+    local CRT_P12=PolarProxy-key-crt.p12
+    local CRT_CRT=PolarProxy-crt.crt
+
+    # Generate key
+    openssl req -x509 \
+        -newkey rsa:4096 \
+        -passin pass:$PASSWD \
+        -keyout $KEY_PEM \
+        -subj "/C=US/ST=California/L=San Diego/O=Development/OU=Dev/CN=example.com" \
+        -out $CRT_PEM \
+        -nodes \
+        -days 365
+
+    # Generate certificate
+    openssl x509 \
+        -inform PEM \
+        -passin pass:$PASSWD \
+        -in $CRT_PEM \
+        -out $CRT_CRT
+
+    # Bundle key and cert for PolarProxy
+    openssl pkcs12 \
+        -in $CRT_PEM \
+        -inkey $KEY_PEM \
+        -out $CRT_P12 \
+        -export \
+        -password pass:$PASSWD \
+        -name PolarProxy
+}
+
 function install_CAPE() {
     echo "[+] Installing CAPEv2"
-
     cd /opt || return
     if [ ! -d CAPEv2 ]; then
         git clone https://github.com/aaron-boyd/CAPEv2/
@@ -1447,6 +1498,7 @@ case "$COMMAND" in
 'all')
     dependencies
     install_CAPE
+    install_PolarProxy
     install_volatility3
     install_mongo
     install_suricata
