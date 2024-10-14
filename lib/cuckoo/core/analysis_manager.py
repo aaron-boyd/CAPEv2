@@ -472,17 +472,21 @@ class AnalysisManager(threading.Thread):
                 self.log.info("Completed analysis %ssuccessfully.", "" if success else "un")
 
             if self.route == "polarproxy":
-                self.log.info("Merging PCAPs")
-                tcpdump_pcap = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "dump.pcap")
+                if os.path.isfile(self.polarproxy_thread.pcap_path):
 
-                tcpdump_packets = rdpcap(tcpdump_pcap)
-                polar_packets = rdpcap(self.polarproxy_thread.pcap_path)
+                    self.log.info("Merging PCAPs")
+                    tcpdump_pcap = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "dump.pcap")
 
-                self.log.info("Found %d PolarProxy packets", len(polar_packets))
-                self.log.info("Found %d tcpdump packets", len(tcpdump_packets))
+                    tcpdump_packets = rdpcap(tcpdump_pcap)
+                    polar_packets = rdpcap(self.polarproxy_thread.pcap_path)
 
-                all_packets = polar_packets + tcpdump_packets
-                wrpcap(tcpdump_pcap, all_packets)
+                    self.log.info("Found %d PolarProxy packets", len(polar_packets))
+                    self.log.info("Found %d tcpdump packets", len(tcpdump_packets))
+
+                    all_packets = polar_packets + tcpdump_packets
+                    wrpcap(tcpdump_pcap, all_packets)
+                else:
+                    self.log.warning("Did not find PolarProxy PCAP %s", self.polarproxy_thread.pcap_path)
 
             self.update_latest_symlink()
 
@@ -529,10 +533,10 @@ class AnalysisManager(threading.Thread):
         routing = Config("routing")
         self.route = routing.routing.route
 
-        self.log.info("Received route: %s", self.route)
-
         if self.task.route:
             self.route = self.task.route
+
+        self.log.info("Received route: %s", self.route)
 
         if self.route in ("none", "None", "drop", "false"):
             self.interface = None
@@ -735,8 +739,6 @@ class AnalysisManager(threading.Thread):
                     "Sniffer returned non-zero error %d.",
                     self.polarproxy_thread.returncode,
                 )
-                self.machine.state = PolarSharkState.ERROR
-                self.machine.status = PolarSharkStatus.PROXY_CRASH
                 # del self.polarproxy_thread
                 # self.polarproxy_thread = None
 

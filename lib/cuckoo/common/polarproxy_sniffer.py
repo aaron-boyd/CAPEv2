@@ -31,7 +31,7 @@ class PolarProxySniffer(Thread):
             return s.getsockname()[1]
 
     def run(self):
-        self.log.debug("Starting process")
+        self.log.info("Starting PolarProxy process")
 
         old_pids = self.get_process_id()
 

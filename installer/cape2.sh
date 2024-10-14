@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -ex
+set -ex
 # By @doomedraven - https://twitter.com/D00m3dR4v3n
 # Copyright (C) 2011-2023 doomedraven.
 # See the file 'LICENSE.md' for copying permission.
@@ -945,6 +945,8 @@ function dependencies() {
 
     install_postgresql
 
+    sudo -u postgres -H sh -c "psql -c \"DROP DATABASE IF EXISTS ${USER}\"";
+    sudo -u postgres -H sh -c "psql -c \"DROP USER IF EXISTS ${USER}\"";
     sudo -u postgres -H sh -c "psql -c \"CREATE USER ${USER} WITH PASSWORD '$PASSWD'\"";
     sudo -u postgres -H sh -c "psql -c \"CREATE DATABASE ${USER}\"";
     sudo -u postgres -H sh -c "psql -d \"${USER}\" -c \"GRANT ALL PRIVILEGES ON DATABASE ${USER} to ${USER};\""
@@ -1192,13 +1194,19 @@ EOF
 
 function install_PolarProxy() {
     echo "[+] Installing PolarProxy"
+
     cd "/opt/CAPEv2/" || return
+
     if [ ! -d PolarProxy ]; then
         mkdir PolarProxy
     fi
+
     cd PolarProxy
     curl -o PolarProxy.tar.gz https://www.netresec.com/?download=PolarProxy
-    tar xvf PolarProxy.tar.gz
+    tar xf PolarProxy.tar.gz
+    chmod a+x PolarProxy
+    chmod 666 /opt/CAPEv2/PolarProxy/PolarProxy-key-crt.p12
+
     local KEY_PEM=PolarProxy-key.pem
     local CRT_PEM=PolarProxy-crt.pem
     local CRT_P12=PolarProxy-key-crt.p12
@@ -1357,7 +1365,7 @@ function install_volatility3() {
     sudo -u ${USER} poetry run pip3 install git+https://github.com/volatilityfoundation/volatility3
     vol_path=$(sudo -u ${USER} poetry run python3 -c "import volatility3.plugins;print(volatility3.__file__.replace('__init__.py', 'symbols/'))")
     cd $vol_path || return
-    wget -q https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip -O windows.zip
+    wget https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip -O windows.zip
     unzip windows.zip
     rm windows.zip
     chown "${USER}:${USER}" $vol_path -R
