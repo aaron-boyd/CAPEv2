@@ -1,5 +1,5 @@
 #!/bin/bash
-set -ex
+# set -ex
 # By @doomedraven - https://twitter.com/D00m3dR4v3n
 # Copyright (C) 2011-2023 doomedraven.
 # See the file 'LICENSE.md' for copying permission.
@@ -9,9 +9,9 @@ set -ex
 # Static values
 # Where to place everything
 # CAPE TcpDump will sniff this interface
-NETWORK_IFACE=virbr1
+NETWORK_IFACE=enp6s19
 # On which IP TOR should listen
-IFACE_IP="192.168.1.1"
+IFACE_IP="172.10.10.1"
 # Confiures default network interface ip route table
 INTERNET_IFACE=$(ip route | grep '^default'|awk '{print $5}')
 # DB password
@@ -812,7 +812,6 @@ function install_mongo(){
 			systemctl stop mongod.service
 			systemctl disable mongod.service
 			rm /lib/systemd/system/mongod.service
-			rm /lib/systemd/system/mongod.service
 			systemctl daemon-reload
 		fi
 
@@ -906,7 +905,7 @@ function dependencies() {
     apt-get install python3-pip build-essential libssl-dev libssl3 python3-dev cmake nfs-common -y
     apt-get install innoextract msitools iptables psmisc jq sqlite3 tmux net-tools checkinstall graphviz python3-pydot git numactl python3 python3-dev python3-pip libjpeg-dev zlib1g-dev -y
     apt-get install zpaq upx-ucl wget zip unzip p7zip-full lzip rar unrar unace-nonfree cabextract geoip-database libgeoip-dev libjpeg-dev mono-utils ssdeep libfuzzy-dev exiftool -y
-    apt-get install uthash-dev libconfig-dev libarchive-dev libtool autoconf automake privoxy software-properties-common wkhtmltopdf xvfb xfonts-100dpi tcpdump libcap2-bin -y
+    apt-get install uthash-dev libconfig-dev libarchive-dev libtool autoconf automake privoxy software-properties-common wkhtmltopdf xvfb xfonts-100dpi tcpdump libcap2-bin wireshark-common -y
     apt-get install python3-pil subversion uwsgi uwsgi-plugin-python3 python3-pyelftools git curl -y
     apt-get install openvpn wireguard -y
 
@@ -965,9 +964,9 @@ function dependencies() {
     # https://www.torproject.org/docs/debian.html.en
     sudo apt-get install gnupg2 -y
 
-    wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | sudo tee /usr/share/keyrings/tor-archive-keyring.gpg >/dev/null
-    echo "deb     [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org $(lsb_release -cs) main" > /etc/apt/sources.list.d/tor.list
-    echo "deb-src [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org $(lsb_release -cs) main" >> /etc/apt/sources.list.d/tor.list
+    wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | sudo tee /usr/share/keyrings/deb.torproject.org-keyring.gpg >/dev/null
+    echo "deb     [arch=amd64 signed-by=/usr/share/keyrings/deb.torproject.org-keyring.gpg] https://deb.torproject.org/torproject.org $(lsb_release -cs) main" > /etc/apt/sources.list.d/tor.list
+    echo "deb-src [arch=amd64 signed-by=/usr/share/keyrings/deb.torproject.org-keyring.gpg] https://deb.torproject.org/torproject.org $(lsb_release -cs) main" >> /etc/apt/sources.list.d/tor.list
 
 
     sudo apt-get update 2>/dev/null
@@ -1040,7 +1039,9 @@ EOF
     ### PDNS
     sudo apt-get install git binutils-dev libldns-dev libpcap-dev libdate-simple-perl libdatetime-perl libdbd-mysql-perl -y
     cd /tmp || return
-    git clone https://github.com/gamelinux/passivedns.git
+    if [ ! -d passivedns ]; then
+        git clone https://github.com/gamelinux/passivedns.git
+    fi
     cd passivedns/ || return
     autoreconf --install
     ./configure
@@ -1187,11 +1188,14 @@ function install_CAPE() {
     echo "[+] Installing CAPEv2"
 
     cd /opt || return
-    git clone https://github.com/kevoreilly/CAPEv2/
+    if [ ! -d CAPEv2 ]; then
+        git clone https://github.com/aaron-boyd/CAPEv2/
+    fi
     #chown -R root:${USER} /usr/var/malheur/
     #chmod -R =rwX,g=rwX,o=X /usr/var/malheur/
     # Adapting owner permissions to the ${USER} path folder
     cd "/opt/CAPEv2/" || return
+    git checkout dev-old-commit
     pip3 install poetry crudini
     CRYPTOGRAPHY_DONT_BUILD_RUST=1 sudo -u ${USER} bash -c 'export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring; poetry install'
     sudo -u ${USER} bash -c 'export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring; poetry run extra/libvirt_installer.sh'
@@ -1248,8 +1252,32 @@ function install_systemd() {
 	if [ "$MONGO_ENABLE" -ge 1 ]; then
 		cape_web_enable_string="cape-web"
 	fi
+
     systemctl enable cape cape-rooter cape-processor "$cape_web_enable_string" suricata
     systemctl restart cape cape-rooter cape-processor "$cape_web_enable_string" suricata
+
+    if [ ! -f "/etc/sudoers.d/cape" ] ; then
+        cat > /etc/sudoers.d/cape << EOF
+Cmnd_Alias CAPE_SVC = /usr/bin/systemctl stop cape, /usr/bin/systemctl start cape, /usr/bin/systemctl restart cape
+Cmnd_Alias CAPE_WEB_SVC = /usr/bin/systemctl stop cape-web, /usr/bin/systemctl start cape-web, /usr/bin/systemctl restart cape-web
+Cmnd_Alias CAPE_PROCESSING_SVC = /usr/bin/systemctl stop cape-processor, /usr/bin/systemctl start cape-processor, /usr/bin/systemctl restart cape-processor
+Cmnd_Alias CAPE_ROOTER_SVC = /usr/bin/systemctl stop cape-rooter, /usr/bin/systemctl start cape-rooter, /usr/bin/systemctl restart cape-rooter
+Cmnd_Alias SURICATA = /usr/bin/systemctl stop suricata, /usr/bin/systemctl start suricata, /usr/bin/systemctl restart suricata
+Cmnd_Alias UWSGI = /usr/bin/systemctl stop uwsgi, /usr/bin/systemctl start uwsgi, /usr/bin/systemctl restart uwsgi
+
+# disttributed cape related
+Cmnd_Alias CAPE_FSTAB_SVC = /usr/bin/systemctl stop cape-fstab, /usr/bin/systemctl start cape-fstab, /usr/bin/systemctl restart cape-fstab
+
+%${USER} ALL=CAPE_SVC
+%${USER} ALL=CAPE_WEB_SVC
+%${USER} ALL=CAPE_PROCESSING_SVC
+%${USER} ALL=CAPE_ROOTER_SVC
+%${USER} ALL=SURICATA
+%${USER} ALL=UWSGI
+
+%cape ALL=CAPE_FSTAB_SVC
+EOF
+    fi
 }
 
 
@@ -1264,6 +1292,7 @@ function install_prometheus_grafana() {
     sudo dpkg -i grafana_"$grafana_version"_amd64.deb
 
     systemctl enable grafana
+
     cat << EOL
     Edit grafana config to listen on correct interface, default localhost, then
     systemctl start grafana
@@ -1415,10 +1444,10 @@ case "$COMMAND" in
     ;;
 'all')
     dependencies
+    install_CAPE
     install_volatility3
     install_mongo
     install_suricata
-    install_CAPE
     install_yara
     install_systemd
     install_jemalloc
