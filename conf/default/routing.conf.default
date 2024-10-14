@@ -26,7 +26,7 @@ internet = none
 nat = yes
 
 # When property nat set to yes. That property not used.
-# When property nat set to no and no_local_routing to yes, a vrf configuration 
+# When property nat set to no and no_local_routing to yes, a vrf configuration
 # will be generated and local traffic will go through by internet interface (dirty_line).
 no_local_routing = yes
 
@@ -90,6 +90,12 @@ interface = virbr1
 # on the specified InetSim host.
 ports =
 
+[polarproxy]
+enabled = no
+interface = virbr1
+path = /opt/CAPEv2/PolarProxy/PolarProxy
+cert = /opt/CAPEv2/PolarProxy/PolarProxy-key-crt.p12
+password = SuperPuperSecret
 
 [tor]
 enabled = no

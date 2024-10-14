@@ -1187,9 +1187,49 @@ EOF
     sudo -u clamav /usr/sbin/clamav-unofficial-sigs
 }
 
+function install_PolarProxy() {
+    echo "[+] Installing PolarProxy"
+    cd "/opt/CAPEv2/" || return
+    if [ -d PolarProxy ]; then
+        mkdir PolarProxy
+    fi
+    cd PolarProxy
+    curl -o PolarProxy.tar.gz https://www.netresec.com/?download=PolarProxy
+    tar xvf PolarProxy.tar.gz
+    local KEY_PEM=PolarProxy-key.pem
+    local CRT_PEM=PolarProxy-crt.pem
+    local CRT_P12=PolarProxy-key-crt.p12
+    local CRT_CRT=PolarProxy-crt.crt
+
+    # Generate key
+    openssl req -x509 \
+        -newkey rsa:4096 \
+        -passin pass:$PASSWD \
+        -keyout $KEY_PEM \
+        -subj "/C=US/ST=California/L=San Diego/O=Development/OU=Dev/CN=example.com" \
+        -out $CRT_PEM \
+        -nodes \
+        -days 365
+
+    # Generate certificate
+    openssl x509 \
+        -inform PEM \
+        -passin pass:$PASSWD \
+        -in $CRT_PEM \
+        -out $CRT_CRT
+
+    # Bundle key and cert for PolarProxy
+    openssl pkcs12 \
+        -in $CRT_PEM \
+        -inkey $KEY_PEM \
+        -out $CRT_P12 \
+        -export \
+        -password pass:$PASSWD \
+        -name PolarProxy
+}
+
 function install_CAPE() {
     echo "[+] Installing CAPEv2"
-
     cd /opt || return
     if [ ! -d CAPEv2 ]; then
         git clone https://github.com/aaron-boyd/CAPEv2/
@@ -1314,7 +1354,7 @@ function install_volatility3() {
     sudo -u ${USER} poetry run pip3 install git+https://github.com/volatilityfoundation/volatility3
     vol_path=$(sudo -u ${USER} poetry run python3 -c "import volatility3.plugins;print(volatility3.__file__.replace('__init__.py', 'symbols/'))")
     cd $vol_path || return
-    wget https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip -O windows.zip
+    wget -q https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip -O windows.zip
     unzip windows.zip
     rm windows.zip
     chown "${USER}:${USER}" $vol_path -R
@@ -1447,6 +1487,7 @@ case "$COMMAND" in
 'all')
     dependencies
     install_CAPE
+    install_PolarProxy
     install_volatility3
     install_mongo
     install_suricata
