@@ -616,6 +616,7 @@ def index(request, task_id=None, resubmit_hash=None):
                 "route": routing.routing.route,
                 "internet": routing.routing.internet,
                 "inetsim": routing.inetsim.enabled,
+                "polarproxy": routing.polarproxy.enabled,
                 "tor": routing.tor.enabled,
                 "config": enabledconf,
                 "resubmit": resubmit_hash,
