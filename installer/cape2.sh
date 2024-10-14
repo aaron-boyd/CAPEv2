@@ -1190,7 +1190,7 @@ EOF
 function install_PolarProxy() {
     echo "[+] Installing PolarProxy"
     cd "/opt/CAPEv2/" || return
-    if [ -d PolarProxy ]; then
+    if [ ! -d PolarProxy ]; then
         mkdir PolarProxy
     fi
     cd PolarProxy
