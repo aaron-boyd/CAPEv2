@@ -6,6 +6,7 @@ import queue
 import shutil
 import threading
 from typing import Any, Callable, Generator, MutableMapping, Optional, Tuple
+from scapy.all import rdpcap, wrpcap
 
 from lib.cuckoo.common.cleaners_utils import free_space_monitor
 from lib.cuckoo.common.config import Config
@@ -27,6 +28,7 @@ from lib.cuckoo.core.machinery_manager import MachineryManager
 from lib.cuckoo.core.plugins import RunAuxiliary
 from lib.cuckoo.core.resultserver import ResultServer
 from lib.cuckoo.core.rooter import _load_socks5_operational, rooter, vpns
+from lib.cuckoo.common.polarproxy_sniffer import PolarProxySniffer
 
 log = logging.getLogger(__name__)
 
@@ -124,6 +126,7 @@ class AnalysisManager(threading.Thread):
         self.reject_segments = None
         self.reject_hostports = None
         self.no_local_routing = None
+        self.polarproxy_thread = None
 
     @main_thread_only
     def prepare_task_and_machine_to_start(self) -> None:
@@ -468,6 +471,19 @@ class AnalysisManager(threading.Thread):
                 self.db.set_status(self.task.id, TASK_COMPLETED)
                 self.log.info("Completed analysis %ssuccessfully.", "" if success else "un")
 
+            if self.route == "polarproxy":
+                self.log.info("Merging PCAPs")
+                tcpdump_pcap = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "dump.pcap")
+
+                tcpdump_packets = rdpcap(tcpdump_pcap)
+                polar_packets = rdpcap(self.polarproxy_thread.pcap_path)
+
+                self.log.info("Found %d PolarProxy packets", len(polar_packets))
+                self.log.info("Found %d tcpdump packets", len(tcpdump_packets))
+
+                all_packets = polar_packets + tcpdump_packets
+                wrpcap(tcpdump_pcap, all_packets)
+
             self.update_latest_symlink()
 
     def update_latest_symlink(self):
@@ -513,6 +529,8 @@ class AnalysisManager(threading.Thread):
         routing = Config("routing")
         self.route = routing.routing.route
 
+        self.log.info("Received route: %s", self.route)
+
         if self.task.route:
             self.route = self.task.route
 
@@ -521,6 +539,8 @@ class AnalysisManager(threading.Thread):
             self.rt_table = None
         elif self.route == "inetsim":
             self.interface = routing.inetsim.interface
+        elif self.route == "polarproxy":
+            self.interface = routing.polarproxy.interface
         elif self.route == "tor":
             self.interface = routing.tor.interface
         elif self.route == "internet" and routing.routing.internet != "none":
@@ -561,6 +581,20 @@ class AnalysisManager(threading.Thread):
                 str(routing.inetsim.dnsport),
                 str(self.cfg.resultserver.port),
                 str(routing.inetsim.ports),
+            )
+        elif self.route == "polarproxy":
+            self.log.info("Starting PolarProxy...")
+            pcap_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "polarproxy-dump.pcap")
+            self.polarproxy_thread = PolarProxySniffer(self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password)
+            self.polarproxy_thread.start()
+            self.log.info(str(self.machine.ip))
+            self.log.info(str(self.interface))
+            self.log.info(str(self.polarproxy_thread.listen_port))
+            self.rooter_response = rooter(
+                "polarproxy_enable",
+                str(self.machine.ip),
+                str(self.interface),
+                str(self.polarproxy_thread.listen_port)
             )
 
         elif self.route == "tor":
@@ -692,6 +726,25 @@ class AnalysisManager(threading.Thread):
                 str(routing.inetsim.dnsport),
                 str(self.cfg.resultserver.port),
                 str(routing.inetsim.ports),
+            )
+        elif self.route == "polarproxy":
+            self.log.info("Shutting down PolarProxy")
+            self.polarproxy_thread.join(1)
+            if self.polarproxy_thread.returncode != 0:
+                self.log.error(
+                    "Sniffer returned non-zero error %d.",
+                    self.polarproxy_thread.returncode,
+                )
+                self.machine.state = PolarSharkState.ERROR
+                self.machine.status = PolarSharkStatus.PROXY_CRASH
+                # del self.polarproxy_thread
+                # self.polarproxy_thread = None
+
+            self.rooter_response = rooter(
+                "polarproxy_disable",
+                str(self.machine.ip),
+                str(self.interface),
+                str(self.polarproxy_thread.listen_port)
             )
 
         elif self.route == "tor":

@@ -9,9 +9,9 @@
 # Static values
 # Where to place everything
 # CAPE TcpDump will sniff this interface
-NETWORK_IFACE=virbr1
+NETWORK_IFACE=enp6s19
 # On which IP TOR should listen
-IFACE_IP="192.168.1.1"
+IFACE_IP="172.10.10.1"
 # Confiures default network interface ip route table
 INTERNET_IFACE=$(ip route | grep '^default'|awk '{print $5}')
 # DB password
@@ -812,7 +812,6 @@ function install_mongo(){
 			systemctl stop mongod.service
 			systemctl disable mongod.service
 			rm /lib/systemd/system/mongod.service
-			rm /lib/systemd/system/mongod.service
 			systemctl daemon-reload
 		fi
 
@@ -1043,7 +1042,9 @@ EOF
     ### PDNS
     sudo apt-get install git binutils-dev libldns-dev libpcap-dev libdate-simple-perl libdatetime-perl libdbd-mysql-perl -y
     cd /tmp || return
-    git clone https://github.com/gamelinux/passivedns.git
+    if [ ! -d passivedns ]; then
+        git clone https://github.com/gamelinux/passivedns.git
+    fi
     cd passivedns/ || return
     autoreconf --install
     ./configure
@@ -1190,7 +1191,9 @@ function install_CAPE() {
     echo "[+] Installing CAPEv2"
 
     cd /opt || return
-    git clone https://github.com/kevoreilly/CAPEv2/
+    if [ ! -d CAPEv2 ]; then
+        git clone https://github.com/aaron-boyd/CAPEv2/
+    fi
     #chown -R root:${USER} /usr/var/malheur/
     #chmod -R =rwX,g=rwX,o=X /usr/var/malheur/
     # Adapting owner permissions to the ${USER} path folder

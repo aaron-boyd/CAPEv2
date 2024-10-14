@@ -2006,7 +2006,8 @@ def exit_nodes_list(request):
         resp["data"].append("tor")
     if routing_conf.inetsim.enabled:
         resp["data"].append("inetsim")
-
+    if routing_conf.polarproxy.enabled:
+        resp["data"].append("polarproxy")
     return Response(resp)
 
 

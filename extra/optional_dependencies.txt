@@ -24,3 +24,4 @@ pdfminer==20191125
 pg_activity
 python-tlsh
 pyattck==7.1.2
+scapy
