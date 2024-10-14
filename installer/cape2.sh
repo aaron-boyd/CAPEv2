@@ -671,8 +671,11 @@ function install_suricata() {
         cp "/var/lib/suricata/rules/"* "/etc/suricata/rules/"
     fi
 
-    # ToDo this is not the best solution but i don't have time now to investigate proper one
-    sed -i 's|CapabilityBoundingSet=CAP_NET_ADMIN|#CapabilityBoundingSet=CAP_NET_ADMIN|g' /lib/systemd/system/suricata.service
+    # Ubuntu 22.04 install suricata under init.d which doesn't have a service file
+    if [ -f /lib/systemd/system/suricata.service ]; then
+        # ToDo this is not the best solution but i don't have time now to investigate proper one
+        sed -i 's|CapabilityBoundingSet=CAP_NET_ADMIN|#CapabilityBoundingSet=CAP_NET_ADMIN|g' /lib/systemd/system/suricata.service
+    fi
     systemctl daemon-reload
 
     #change suricata yaml
