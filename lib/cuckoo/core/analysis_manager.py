@@ -28,7 +28,7 @@ from lib.cuckoo.core.machinery_manager import MachineryManager
 from lib.cuckoo.core.plugins import RunAuxiliary
 from lib.cuckoo.core.resultserver import ResultServer
 from lib.cuckoo.core.rooter import _load_socks5_operational, rooter, vpns
-from lib.cuckoo.common.polarproxy_sniffer import PolarProxySniffer
+from lib.cuckoo.common.polarproxy_sniffer import PolarProxySniffer, unique_tcp_packets
 
 log = logging.getLogger(__name__)
 
@@ -482,9 +482,11 @@ class AnalysisManager(threading.Thread):
 
                     self.log.info("Found %d PolarProxy packets", len(polar_packets))
                     self.log.info("Found %d tcpdump packets", len(tcpdump_packets))
-
-                    all_packets = polar_packets + tcpdump_packets
-                    wrpcap(tcpdump_pcap, all_packets)
+                    uniq_packets = unique_tcp_packets(polar_packets, tcpdump_packets)
+                    self.log.info("Removed %d duplicate TCP packets", len(polar_packets) \
+                                                                      + len(tcpdump_packets) \
+                                                                      - len(uniq_packets))
+                    wrpcap(tcpdump_pcap, uniq_packets)
                 else:
                     self.log.warning("Did not find PolarProxy PCAP %s", self.polarproxy_thread.pcap_path)
 
