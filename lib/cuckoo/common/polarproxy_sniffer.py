@@ -35,7 +35,8 @@ class PolarProxySniffer(Thread):
 
         old_pids = self.get_process_id()
 
-        polar_cmd = f"nohup {self.polar_path} -w {self.pcap_path} --writeall --autoflush 1 -p {self.listen_port},80,443 --nontls allow --cacert load:{self.cert}:{self.password} &>/dev/null &"
+        polar_cmd = f"{self.polar_path} -v -w {self.pcap_path} --writeall --autoflush 1 -p {self.listen_port},80,443 --nontls allow --cacert load:{self.cert}:{self.password} 2>&1 &"
+
         self.log.info("PolarProxy command: %s", polar_cmd)
         os.system(polar_cmd)
 

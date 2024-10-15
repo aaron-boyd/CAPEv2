@@ -1205,7 +1205,6 @@ function install_PolarProxy() {
     curl -o PolarProxy.tar.gz https://www.netresec.com/?download=PolarProxy
     tar xf PolarProxy.tar.gz
     chmod a+x PolarProxy
-    chmod 666 /opt/CAPEv2/PolarProxy/PolarProxy-key-crt.p12
 
     local KEY_PEM=PolarProxy-key.pem
     local CRT_PEM=PolarProxy-crt.pem
@@ -1237,6 +1236,9 @@ function install_PolarProxy() {
         -export \
         -password pass:$PASSWD \
         -name PolarProxy
+
+    chown $USER:$USER $CRT_P12
+    chmod 600 $CRT_P12
 }
 
 function install_CAPE() {
