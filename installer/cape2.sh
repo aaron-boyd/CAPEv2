@@ -907,6 +907,9 @@ function dependencies() {
     #sudo snap install canonical-livepatch
     #sudo canonical-livepatch enable APITOKEN
 
+    # Allow non-sudo users to capture packets
+    echo "wireshark-common wireshark-common/install-setuid boolean true" | sudo debconf-set-selections
+
     # deps
     apt-get install python3-pip build-essential libssl-dev libssl3 python3-dev cmake nfs-common -y
     apt-get install innoextract msitools iptables psmisc jq sqlite3 tmux net-tools checkinstall graphviz python3-pydot git numactl python3 python3-dev python3-pip libjpeg-dev zlib1g-dev -y
@@ -1216,7 +1219,7 @@ function install_PolarProxy() {
         -newkey rsa:4096 \
         -passin pass:$PASSWD \
         -keyout $KEY_PEM \
-        -subj "/C=US/ST=California/L=San Diego/O=Development/OU=Dev/CN=example.com" \
+        -subj "/C=US/ST=California/L=San Diego/O=Development/OU=Dev/CN=CAPEv2 PolarProxy" \
         -out $CRT_PEM \
         -nodes \
         -days 365

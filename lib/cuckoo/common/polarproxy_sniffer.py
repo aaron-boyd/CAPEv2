@@ -10,7 +10,36 @@ import uuid
 from contextlib import closing
 from pathlib import Path
 from threading import Thread
+from scapy.all import *
 
+def get_packet_hash(packet):
+    if packet.haslayer(TCP):
+        # Extract TCP packet fields that uniquely identify it
+        tcp_layer = packet[TCP]
+
+        # Create a string combining fields that should be unique per packet
+        unique_data = f"{tcp_layer.sport}{tcp_layer.dport}{tcp_layer.seq}{tcp_layer.ack}{tcp_layer.flags}"
+
+        # If the packet has a payload, include it as well
+        if packet.haslayer(Raw):
+            unique_data += str(packet[Raw].load)
+
+        # Compute the checksum (or hash) of the unique data
+        return hashlib.sha256(unique_data.encode()).hexdigest()
+    return None
+
+def unique_tcp_packets(packets_a, packets_b):
+    packets = packets_a
+    packet_hashes = [get_packet_hash(p) for p in packets]
+    for packet in packets_b:
+        if packet.haslayer(TCP):
+            packet_hash = get_packet_hash(packet)
+            if not packet_hash in packet_hashes:
+                packet_hashes.append(packet_hash)
+                continue
+        packets.append(packet)
+    packets.sort(key=lambda pkt: pkt.time)
+    return packets
 
 class PolarProxySniffer(Thread):
     def __init__(self, log, polar_path, pcap_path, cert, password, listen_port=0):
@@ -35,7 +64,7 @@ class PolarProxySniffer(Thread):
 
         old_pids = self.get_process_id()
 
-        polar_cmd = f"{self.polar_path} -v -w {self.pcap_path} --writeall --autoflush 1 -p {self.listen_port},80,443 --nontls allow --cacert load:{self.cert}:{self.password} 2>&1 &"
+        polar_cmd = f"{self.polar_path} -v -w {self.pcap_path} --writeall --autoflush 1 -p {self.listen_port},80,443 --cacert load:{self.cert}:{self.password} 2>&1 &"
 
         self.log.info("PolarProxy command: %s", polar_cmd)
         os.system(polar_cmd)
