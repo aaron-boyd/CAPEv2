@@ -92,10 +92,10 @@ ports =
 
 [polarproxy]
 enabled = no
-interface = virbr1
 path = /opt/CAPEv2/PolarProxy/PolarProxy
 cert = /opt/CAPEv2/PolarProxy/PolarProxy-key-crt.p12
 password = SuperPuperSecret
+interface = enp6s19
 
 [tor]
 enabled = no
