@@ -474,7 +474,7 @@ class AnalysisManager(threading.Thread):
             if self.route == "polarproxy":
                 if os.path.isfile(self.polarproxy_thread.pcap_path):
 
-                    self.log.info("Merging PCAPs")
+                    self.log.info("Merging PolarProxy and tcpdump PCAPs")
                     tcpdump_pcap = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "dump.pcap")
 
                     tcpdump_packets = rdpcap(tcpdump_pcap)
@@ -545,7 +545,7 @@ class AnalysisManager(threading.Thread):
             self.rt_table = None
         elif self.route == "inetsim":
             self.interface = routing.inetsim.interface
-        elif self.route == "polarproxy":
+        elif self.route.startswith("polarproxy"):
             self.interface = routing.routing.internet
             self.rt_table = routing.routing.rt_table
             self.no_local_routing = routing.routing.no_local_routing
@@ -594,10 +594,13 @@ class AnalysisManager(threading.Thread):
                 str(self.cfg.resultserver.port),
                 str(routing.inetsim.ports),
             )
-        elif self.route == "polarproxy":
+        elif self.route.startswith("polarproxy"):
             self.log.info("Starting PolarProxy...")
             pcap_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "polarproxy-dump.pcap")
-            self.polarproxy_thread = PolarProxySniffer(self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password)
+            if self.route == "polarproxy_inetsim":
+                self.polarproxy_thread = PolarProxySniffer(self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password, inetsim=routing.inetsim.server)
+            else:
+                self.polarproxy_thread = PolarProxySniffer(self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password)
             self.polarproxy_thread.start()
             self.rooter_response = rooter(
                 "polarproxy_enable",
@@ -736,7 +739,7 @@ class AnalysisManager(threading.Thread):
                 str(self.cfg.resultserver.port),
                 str(routing.inetsim.ports),
             )
-        elif self.route == "polarproxy":
+        elif self.route.startswith("polarproxy"):
             self.log.info("Shutting down PolarProxy")
             self.polarproxy_thread.join(1)
             if self.polarproxy_thread.returncode != 0:
@@ -744,8 +747,6 @@ class AnalysisManager(threading.Thread):
                     "Sniffer returned non-zero error %d.",
                     self.polarproxy_thread.returncode,
                 )
-                # del self.polarproxy_thread
-                # self.polarproxy_thread = None
 
             self.rooter_response = rooter(
                 "polarproxy_disable",

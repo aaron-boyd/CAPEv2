@@ -42,7 +42,7 @@ def unique_tcp_packets(packets_a, packets_b):
     return packets
 
 class PolarProxySniffer(Thread):
-    def __init__(self, log, polar_path, pcap_path, cert, password, listen_port=0):
+    def __init__(self, log, polar_path, pcap_path, cert, password, listen_port=0, inetsim=""):
         super().__init__()
         self.log = log
         self.daemon = True
@@ -52,6 +52,13 @@ class PolarProxySniffer(Thread):
         self.cert = cert
         self.password = password
         self.listen_port = listen_port or self.find_free_port()
+        self.inetsim = inetsim
+        self.base_cmd = f"{self.polar_path} -v -w {self.pcap_path} --writeall --autoflush 1 --cacert load:{self.cert}:{self.password}"
+
+        if inetsim:
+            self.polar_cmd = f"{self.base_cmd} -p {self.listen_port},443,80 --terminate --nosni nosni.inetsim.org --leafcert sign --connect {self.inetsim}"
+        else:
+            self.polar_cmd = f"{self.base_cmd} -p {self.listen_port},80,443"
 
     def find_free_port(self):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
@@ -64,10 +71,8 @@ class PolarProxySniffer(Thread):
 
         old_pids = self.get_process_id()
 
-        polar_cmd = f"{self.polar_path} -v -w {self.pcap_path} --writeall --autoflush 1 -p {self.listen_port},80,443 --cacert load:{self.cert}:{self.password} 2>&1 &"
-
-        self.log.info("PolarProxy command: %s", polar_cmd)
-        os.system(polar_cmd)
+        self.log.info("PolarProxy Command: %s", self.polar_cmd)
+        os.system(f"{self.polar_cmd} 2>&1 &")
 
         new_pids = [
             new_pid for new_pid in self.get_process_id() if new_pid not in old_pids

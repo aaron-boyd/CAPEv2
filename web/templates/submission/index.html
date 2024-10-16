@@ -254,8 +254,11 @@ $(document).ready( function() {
                                         {% if inetsim %}
                                             <option value="inetsim">inetsim/fakenet-ng</option>
                                         {% endif %}
-                                        {% if polarproxy %}
-                                        <option value="polarproxy">PolarProxy</option>
+                                        {% if polarproxy_internet %}
+                                        <option value="polarproxy_internet">PolarProxy - (dirty line, {{ internet }})</option>
+                                        {% endif %}
+                                        {% if polarproxy_inetsim %}
+                                        <option value="polarproxy_inetsim">PolarProxy - inetsim</option>
                                         {% endif %}
                                         {% if tor %}
                                             <option value="tor">tor</option>
@@ -549,7 +552,7 @@ $(document).ready( function() {
                                                     <td><code>ttd</code></td>
                                                     <td>ttd=1. TTD integration (Microsoft Time Travel Debugging). Requires binaries to be placed in correct folder</td>
                                                 </tr>
-                                                
+
                                             </tbody>
                                         </table>
                                     </div>
