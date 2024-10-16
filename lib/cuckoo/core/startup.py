@@ -402,7 +402,7 @@ def init_routing():
         return
 
     # Check whether the default VPN exists if specified.
-    if routing.routing.route not in ("none", "internet", "tor", "inetsim"):
+    if routing.routing.route not in ("none", "internet", "tor", "inetsim", "polarproxy"):
         if not routing.vpn.enabled:
             raise CuckooStartupError(
                 "A VPN has been configured as default routing interface for VMs, but VPNs have not been enabled in routing.conf"
@@ -473,6 +473,22 @@ def init_routing():
         if routing.routing.auto_rt:
             rooter("flush_rttable", routing.routing.rt_table)
             rooter("init_rttable", routing.routing.rt_table, routing.routing.internet)
+
+    if routing.polarproxy.enabled and routing.polarproxy.interface:
+        is_nic_available = rooter("nic_available", routing.polarproxy.interface)["output"]
+        if not is_nic_available:
+            raise CuckooStartupError("The network interface that has been configured as inetsim line is not available")
+
+        # Disable & enable NAT on this network interface. Disable it just
+        # in case we still had the same rule from a previous run.
+        rooter("disable_nat", routing.polarproxy.interface)
+        rooter("enable_nat", routing.polarproxy.interface)
+
+        # Populate routing table with entries from main routing table.
+        if routing.routing.auto_rt:
+            rooter("flush_rttable", routing.routing.rt_table)
+            rooter("init_rttable", routing.routing.rt_table, routing.routing.internet)
+
 
 
 def check_tcpdump_permissions():
