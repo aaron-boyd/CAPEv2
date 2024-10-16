@@ -546,7 +546,13 @@ class AnalysisManager(threading.Thread):
         elif self.route == "inetsim":
             self.interface = routing.inetsim.interface
         elif self.route == "polarproxy":
-            self.interface = routing.polarproxy.interface
+            self.interface = routing.routing.internet
+            self.rt_table = routing.routing.rt_table
+            self.no_local_routing = routing.routing.no_local_routing
+            if routing.routing.reject_segments != "none":
+                self.reject_segments = routing.routing.reject_segments
+            if routing.routing.reject_hostports != "none":
+                self.reject_hostports = str(routing.routing.reject_hostports)
         elif self.route == "tor":
             self.interface = routing.tor.interface
         elif self.route == "internet" and routing.routing.internet != "none":
@@ -593,13 +599,10 @@ class AnalysisManager(threading.Thread):
             pcap_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "polarproxy-dump.pcap")
             self.polarproxy_thread = PolarProxySniffer(self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password)
             self.polarproxy_thread.start()
-            self.log.info(str(self.machine.ip))
-            self.log.info(str(self.interface))
-            self.log.info(str(self.polarproxy_thread.listen_port))
             self.rooter_response = rooter(
                 "polarproxy_enable",
                 str(self.machine.ip),
-                str(self.interface),
+                str(self.machine.interface),
                 str(self.polarproxy_thread.listen_port)
             )
 

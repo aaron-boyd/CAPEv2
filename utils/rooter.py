@@ -558,12 +558,12 @@ def inetsim_disable(ipaddr, inetsim_ip, dns_port, resultserver_port, ports):
 
 def polarproxy_enable(ipaddr, interface, polarproxy_port):
     log.info("Enabling polarproxy route.")
-    run_iptables("-A", "INPUT", "-i", interface, "-p", "tcp" "--dport", polarproxy_port, "-m", "state", "--state", "NEW", "-j", "ACCEPT")
+    run_iptables("-A", "INPUT", "-i", interface, "-p", "tcp", "--dport", polarproxy_port, "-m", "state", "--state", "NEW", "-j", "ACCEPT")
     run_iptables("-t", "nat", "-A", "PREROUTING", "-i", interface, "-p", "tcp", "--dport", "443", "-j", "REDIRECT", "--to", polarproxy_port)
 
 def polarproxy_disable(ipaddr, interface, polarproxy_port):
     log.info("Disabling polarproxy route.")
-    run_iptables("-D", "INPUT", "-i", interface, "-p", "tcp" "--dport", polarproxy_port, "-m", "state", "--state", "NEW", "-j", "ACCEPT")
+    run_iptables("-D", "INPUT", "-i", interface, "-p", "tcp", "--dport", polarproxy_port, "-m", "state", "--state", "NEW", "-j", "ACCEPT")
     run_iptables("-t", "nat", "-D", "PREROUTING", "-i", interface, "-p", "tcp", "--dport", "443", "-j", "REDIRECT", "--to", polarproxy_port)
 
 def socks5_enable(ipaddr, resultserver_port, dns_port, proxy_port):
