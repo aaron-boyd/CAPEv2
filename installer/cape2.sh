@@ -1241,7 +1241,8 @@ function install_PolarProxy() {
         -name PolarProxy
 
     chown $USER:$USER $CRT_P12
-    chmod 600 $CRT_P12
+    # Figure out why this can't be 600 since cape is running polarproxy
+    chmod 644 $CRT_P12
 }
 
 function install_CAPE() {

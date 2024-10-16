@@ -302,6 +302,7 @@ def init_rooter():
         and not routing.tor.enabled
         and not routing.inetsim.enabled
         and not routing.socks5.enabled
+        and not routing.polarproxy.enabled
         and routing.routing.route == "none"
     ):
         return
