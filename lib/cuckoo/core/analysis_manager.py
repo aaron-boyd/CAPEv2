@@ -471,7 +471,7 @@ class AnalysisManager(threading.Thread):
                 self.db.set_status(self.task.id, TASK_COMPLETED)
                 self.log.info("Completed analysis %ssuccessfully.", "" if success else "un")
 
-            if self.route == "polarproxy":
+            if self.route.startswith("polarproxy"):
                 if os.path.isfile(self.polarproxy_thread.pcap_path):
 
                     self.log.info("Merging PolarProxy and tcpdump PCAPs")
@@ -483,9 +483,7 @@ class AnalysisManager(threading.Thread):
                     self.log.info("Found %d PolarProxy packets", len(polar_packets))
                     self.log.info("Found %d tcpdump packets", len(tcpdump_packets))
                     uniq_packets = unique_tcp_packets(polar_packets, tcpdump_packets)
-                    self.log.info("Removed %d duplicate TCP packets", len(polar_packets) \
-                                                                      + len(tcpdump_packets) \
-                                                                      - len(uniq_packets))
+                    self.log.info("Found %d unique packets", len(uniq_packets))
                     wrpcap(tcpdump_pcap, uniq_packets)
                 else:
                     self.log.warning("Did not find PolarProxy PCAP %s", self.polarproxy_thread.pcap_path)

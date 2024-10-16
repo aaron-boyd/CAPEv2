@@ -53,10 +53,10 @@ class PolarProxySniffer(Thread):
         self.password = password
         self.listen_port = listen_port or self.find_free_port()
         self.inetsim = inetsim
-        self.base_cmd = f"{self.polar_path} -v -w {self.pcap_path} --writeall --autoflush 1 --cacert load:{self.cert}:{self.password}"
+        self.base_cmd = f"{self.polar_path} -v -w {self.pcap_path} --writeall --autoflush 1 --cacert load:{self.cert}:{self.password} --leafcert sign"
 
         if inetsim:
-            self.polar_cmd = f"{self.base_cmd} -p {self.listen_port},443,80 --terminate --nosni nosni.inetsim.org --leafcert sign --connect {self.inetsim}"
+            self.polar_cmd = f"{self.base_cmd} -p {self.listen_port},443,80 --terminate --nosni nosni.inetsim.org --connect {self.inetsim}"
         else:
             self.polar_cmd = f"{self.base_cmd} -p {self.listen_port},80,443"
 
