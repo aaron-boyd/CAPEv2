@@ -749,7 +749,7 @@ class AnalysisManager(threading.Thread):
             self.rooter_response = rooter(
                 "polarproxy_disable",
                 str(self.machine.ip),
-                str(self.interface),
+                str(self.machine.interface),
                 str(self.polarproxy_thread.listen_port)
             )
 
