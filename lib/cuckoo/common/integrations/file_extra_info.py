@@ -28,6 +28,7 @@ from lib.cuckoo.common.integrations.parse_lnk import LnkShortcut
 from lib.cuckoo.common.integrations.parse_office import HAVE_OLETOOLS, Office
 from lib.cuckoo.common.integrations.parse_pdf import PDF
 from lib.cuckoo.common.integrations.parse_pe import HAVE_PEFILE, PortableExecutable
+from lib.cuckoo.common.integrations.parse_rdp import parse_rdp_file
 from lib.cuckoo.common.integrations.parse_wsf import WindowsScriptFile  # EncodedScriptFile
 
 # from lib.cuckoo.common.integrations.parse_elf import ELF
@@ -112,10 +113,8 @@ except ImportError:
     HAVE_BAT_DECODER = False
     print("OPTIONAL! Missed dependency: poetry run pip install -U git+https://github.com/DissectMalware/batch_deobfuscator")
 
-processing_conf = Config("processing")
-selfextract_conf = Config("selfextract")
-
 unautoit_binary = os.path.join(CUCKOO_ROOT, selfextract_conf.UnAutoIt_extract.binary)
+innoextact_binary = os.path.join(CUCKOO_ROOT, selfextract_conf.Inno_extract.binary)
 
 if processing_conf.trid.enabled:
     trid_binary = os.path.join(CUCKOO_ROOT, processing_conf.trid.identifier)
@@ -177,7 +176,7 @@ def static_file_info(
             if capa_details:
                 data_dictionary["flare_capa"] = capa_details
 
-        if HAVE_FLOSS:
+        if HAVE_FLOSS and processing_conf.floss.enabled and "Mono" not in data_dictionary["type"]:
             floss_strings = Floss(file_path, "static", "pe").run()
             if floss_strings:
                 data_dictionary["floss"] = floss_strings
@@ -208,7 +207,8 @@ def static_file_info(
             log.error("procyon_path specified in processing.conf but the file does not exist")
         else:
             data_dictionary["java"] = Java(file_path, selfextract_conf.procyon.binary).run()
-
+    elif file_path.endswith(".rdp") or data_dictionary.get("name", {}).endswith(".rdp"):
+        data_dictionary["rdp"] = parse_rdp_file(file_path)
     # It's possible to fool libmagic into thinking our 2007+ file is a zip.
     # So until we have static analysis for zip files, we can use oleid to fail us out silently,
     # yeilding no static analysis results for actual zip files.
@@ -229,7 +229,7 @@ def static_file_info(
         if processing_conf.die.enabled and HAVE_DIE:
             data_dictionary["die"] = detect_it_easy_info(file_path)
 
-        if HAVE_FLOSS and processing_conf.floss.enabled:
+        if HAVE_FLOSS and processing_conf.floss.enabled and "Mono" not in data_dictionary["type"]:
             floss_strings = Floss(file_path, package).run()
             if floss_strings:
                 data_dictionary["floss"] = floss_strings
@@ -502,13 +502,12 @@ def generic_file_extractors(
                 log.debug("Files already extracted from %s by %s. Also extracted with %s", file, old_tool_name, new_tool_name)
                 continue
             metadata = _extracted_files_metadata(tempdir, destination_folder, files=extracted_files, results=results)
-            data_dictionary.update(
-                {
-                    "extracted_files": metadata,
-                    "extracted_files_tool": new_tool_name,
-                    "extracted_files_time": func_result["took_seconds"],
-                }
-            )
+            data_dictionary.setdefault("selfextract", {})
+            data_dictionary["selfextract"][new_tool_name] = {
+                "extracted_files": metadata,
+                "extracted_files_time": func_result["took_seconds"],
+                "password": extraction_result.get("password", ""),
+            }
         finally:
             if tempdir:
                 # ToDo doesn't work
@@ -576,7 +575,7 @@ def eziriz_deobfuscate(file: str, *, data_dictionary: dict, **_) -> ExtractorRet
     if file.endswith("_Slayed"):
         return
 
-    if all("Eziriz .NET Reactor" not in string for string in data_dictionary.get("die", [])):
+    if all(".NET Reactor" not in string for string in data_dictionary.get("die", [])):
         return
 
     binary = shlex.split(selfextract_conf.eziriz_deobfuscate.binary.strip())[0]
@@ -587,7 +586,7 @@ def eziriz_deobfuscate(file: str, *, data_dictionary: dict, **_) -> ExtractorRet
 
     if not path_exists(binary):
         log.error(
-            "Missing dependency: Download from https://github.com/SychicBoy/NETReactorSlayer/releases and place under %s.",
+            "Missing dependency: Download from https://github.com/otavepto/NETReactorSlayer/releases and place under %s.",
             binary,
         )
         return
@@ -702,17 +701,36 @@ def Inno_extract(file: str, *, data_dictionary: dict, **_) -> ExtractorReturnTyp
     if all("Inno Setup" not in string for string in data_dictionary.get("die", [])):
         return
 
-    if not path_exists(selfextract_conf.Inno_extract.binary):
-        log.error("Missed dependency: sudo apt install innoextract")
+    if not path_exists(innoextact_binary):
+        log.error("Missed dependency: Get a release from https://github.com/gdesmar/innoextract")
         return
 
+    password = ""
     with extractor_ctx(file, "InnoExtract", prefix="innoextract_", folder=tools_folder) as ctx:
         tempdir = ctx["tempdir"]
-        run_tool(
-            [selfextract_conf.Inno_extract.binary, file, "--output-dir", tempdir],
+        output = run_tool(
+            [innoextact_binary, file, "--output-dir", tempdir],
             universal_newlines=True,
             stderr=subprocess.PIPE,
         )
+        if (
+            "Warning: Setup contains encrypted files, use the --password option to extract them" in output
+            or "- encrypted" in output
+        ):
+            output = run_tool(
+                [innoextact_binary, "--crack", file],
+                universal_newlines=True,
+                stderr=subprocess.PIPE,
+            )
+            if "Password found: " in output:
+                password = output.split("\n")[0].split(": ")[1]
+            if password:
+                _ = run_tool(
+                    [innoextact_binary, file, "--output-dir", tempdir, "--password", password],
+                    universal_newlines=True,
+                    stderr=subprocess.PIPE,
+                )
+                ctx["password"] = password
         ctx["extracted_files"] = collect_extracted_filenames(tempdir)
 
     return ctx
@@ -748,7 +766,8 @@ UN_AUTOIT_NOTIF = False
 @time_tracker
 def UnAutoIt_extract(file: str, *, data_dictionary: dict, **_) -> ExtractorReturnType:
     global UN_AUTOIT_NOTIF
-    if all(block.get("name") not in ("AutoIT_Compiled", "AutoIT_Script") for block in data_dictionary.get("yara", {})):
+    merged_lists = data_dictionary.get("yara", []) + data_dictionary.get("cape_yara", [])
+    if all(not block.get("name", "").lower().startswith("autoit") for block in merged_lists):
         return
 
     # this is useless to notify in each iteration

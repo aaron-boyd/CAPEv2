@@ -1,3 +1,20 @@
+### [31.12.2024]
+* Monitor updates:
+    * CoGetClassObject hook: add inspect_clsid for improved injection (e.g. 38a9847cb5ce4918bdfee2d54d5d3b79e1399cce15c7b68d86e8f0a5f48e3131)
+    * SetFileInformationByHandle hook
+    * GetComputerNameExW hook: add fake results for all NameTypes (e.g. 8056b8ff55c452cc87e35d69928cccbcfc5af848db1abb4fe0364510986e068b)
+    * RmStartSession hook (thanks para0x0dise)
+    * LdrpCallInitRoutine hook for Win10+
+
+### [01.11.2024] Parsers
+* Malware config parsers aka parsers are moved out of core of CAPE.
+    * Now they are at their own [repository](https://github.com/CAPESandbox/CAPE-parsers).
+        * Feature added. `load=X`, where `X` is one of those: all/core/community
+            * All = core and community
+        * Exclude parsers. Allows to not load some particular parsers. `exclude_parsers=["name1", "name2"]`
+    * Your custom parsers from `custom/parsers/` will still load and overwrite cape carser if name matches.
+* __Action required!__ `cd /opt/CAPEv2 && poetry install`
+
 ### [04.10.2024]
 * Monitor update: Add GetClassObject hook to handle UAC bypass technique using CMSTPLUA COM object
 * PrivateLoader direct syscall capture

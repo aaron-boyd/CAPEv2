@@ -74,13 +74,16 @@ except ImportError:
     print("Missed library. Run: poetry install")
     HAVE_YARA = False
 
+HAVE_YARA_X = False
+yara_x = False
+"""
 try:
     import yara_x
 
     HAVE_YARA_X = True
 except ImportError:
     # print("Missed library. Run: poetry install pip3 install yara-x")
-    HAVE_YARA_X = False
+"""
 
 log = logging.getLogger(__name__)
 
@@ -163,7 +166,8 @@ class URL:
 class File:
     """Basic file object class with all useful utilities."""
 
-    LINUX_TYPES = {"Bourne-Again", "POSIX shell script", "ELF", "Python"}
+    # ToDo python can be executed on windows too
+    LINUX_TYPES = {"Bourne-Again", "POSIX shell script", "ELF"}  # , "Python"
     DARWIN_TYPES = {"Mach-O"}
 
     # The yara rules should not change during one Cuckoo run and as such we're
@@ -623,7 +627,10 @@ class File:
         """Return the part of the cape_type (e.g. "SocGholish Payload") preceding
         " Payload", " Config", " Loader", or " Strings"
         """
-        return cls.cape_name_regex.sub("", cape_type)
+        if bool(cls.cape_name_regex.search(cape_type)):
+            return cls.cape_name_regex.sub("", cape_type)
+        else:
+            return ""
 
     def get_tlsh(self):
         """
@@ -729,6 +736,7 @@ class File:
         retval = "windows"
         ftype = self.get_type()
         if isinstance(ftype, str):
+            # ToDo check if linux enabled
             if any(x in ftype for x in File.LINUX_TYPES):
                 retval = "linux"
             elif any(x in ftype for x in File.DARWIN_TYPES):

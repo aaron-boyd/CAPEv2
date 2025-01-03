@@ -12,9 +12,10 @@ processing_cfg = Config("processing")
 
 HAVE_FLOSS = False
 try:
-    HAVE_FLOSS = True
     import floss.main as fm
     from floss.strings import extract_ascii_unicode_strings
+
+    HAVE_FLOSS = True
 except ImportError:
     print("Missed dependency flare-floss: poetry run pip install -U flare-floss")
 
@@ -48,9 +49,9 @@ class Floss:
 
         try:
             if not fm.is_supported_file_type(Path(self.file_path)):
-                if self.package == "Shellcode":
+                if self.package == "shellcode":
                     fileformat = "sc32"
-                elif self.package == "Shellcode_x64":
+                elif self.package == "shellcode_x64":
                     fileformat = "sc64"
                 else:
                     return results
