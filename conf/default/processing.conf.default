@@ -81,7 +81,7 @@ platform = linux
 [debug]
 enabled = yes
 # Amount of text (bytes)
-buffer = 8192
+buffer = 0
 
 [detections]
 enabled = yes
@@ -310,6 +310,10 @@ modules_path = modules/processing/parsers/malduck/
 enabled = yes
 # Must ends with /
 modules_path = modules/processing/parsers/CAPE/
+# Config parsers all/core/community
+parsers = all
+# list of comma separated parsers. Ex: stealc,lumma
+exclude=
 
 # Community
 [reversinglabs]
@@ -320,11 +324,6 @@ key =
 # Community
 [script_log_processing]
 enabled = yes
-
-# Community
-# Dump PE's overlay info
-[overlay]
-enabled = no
 
 # Community
 [floss]

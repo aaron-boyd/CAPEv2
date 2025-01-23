@@ -766,7 +766,7 @@ def download_file(**kwargs):
     if not onesuccess:
         return "error", {"error": f"Provided hash not found on {kwargs['service']}"}
 
-    return "ok", kwargs["task_ids"], extra_details.get("erros", [])
+    return "ok", {"task_ids": kwargs["task_ids"], "errors": extra_details.get("errors", [])}
 
 
 def save_script_to_storage(task_ids, kwargs):
@@ -986,13 +986,14 @@ search_term_map = {
         "network.udp.dport",
         "network.smtp_ex.dport",
     ),
+    # ToDo update schema
     # File_extra_info
     "extracted_tool": (
-        "info.parent_sample.extracted_files_tool",
-        "target.file.extracted_files_tool",
-        "dropped.extracted_files_tool",
-        "procdump.extracted_files_tool",
-        "CAPE.payloads.extracted_files_tool",
+        "info.parent_sample.selfextract",
+        "target.file.selfextract",
+        "dropped.selfextract",
+        "procdump.selfextract",
+        "CAPE.payloads.selfextract",
     ),
 }
 
@@ -1093,6 +1094,9 @@ def perform_search(term, value, search_limit=False, user_id=False, privs=False, 
     elif term == "configs":
         # check if family name is string only maybe?
         query_val = {f"{search_term_map[term]}.{value}": {"$exist": True}, "$options": "i"}
+    # ToDo proper implementation here
+    # elif term == "extracted_tool":
+    #    query_val = {"$exist": True}
     elif term == "ttp":
         if validate_ttp(value):
             query_val = value.upper()
@@ -1324,15 +1328,19 @@ def thirdpart_aux(samples, prefix, opt_filename, details, settings):
             if content:
                 details["content"] = content
 
+        errors = {}
         if not details.get("content", False):
-            status, task_ids_tmp = download_file(**details)
+            status, tasks_details = download_file(**details)
         else:
             details["service"] = "Local"
-            status, task_ids_tmp = download_file(**details)
+            status, tasks_details = download_file(**details)
         if status == "error":
-            details["errors"].append({h: task_ids_tmp})
+            details["errors"].append({h: tasks_details})
         else:
-            details["task_ids"] = task_ids_tmp
+            details["task_ids"] = tasks_details.get("task_ids", [])
+            errors = tasks_details.get("errors")
+            if errors:
+                details["errors"].extend(errors)
 
     return details
 

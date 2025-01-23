@@ -129,6 +129,9 @@ class TestAnalysisManager:
             "sanitize_to_len": 24,
             "scaling_semaphore": False,
             "scaling_semaphore_update_timer": 10,
+            "task_pending_timeout": 0,
+            "task_timeout": False,
+            "task_timeout_scan_interval": 30,
             "freespace_processing": 15000,
             "periodic_log": False,
             "fail_unserviceable": True,
@@ -350,6 +353,7 @@ class TestAnalysisManager:
             "upload_max_size": 100000000,
             "usage": False,
             "windows_static_route": False,
+            "windows_static_route_gateway": "192.168.1.1",
         }
 
     def test_build_options_pe(
@@ -411,6 +415,7 @@ class TestAnalysisManager:
             "upload_max_size": 100000000,
             "usage": False,
             "windows_static_route": False,
+            "windows_static_route_gateway": "192.168.1.1",
         }
 
     def test_category_checks(

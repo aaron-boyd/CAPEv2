@@ -39,13 +39,14 @@ class TestFileExtraInfo:
             duplicated,
             tests=True,
         )
-        assert data_dictionary["extracted_files_tool"] == "MsiExtract"
-        assert len(data_dictionary["extracted_files"]) == 2
+        assert "MsiExtract" in data_dictionary["selfextract"].keys()
+        assert len(data_dictionary["selfextract"]["MsiExtract"]["extracted_files"]) == 2
 
     @pytest.mark.skipif(
         not (self_extraction_dir / "5b354397f6393ed777639b7d40dec3f37215dcb5078c63993e8a9703e819e2bc.inno").exists(),
         reason="Required data file is not present",
     )
+    @pytest.mark.skip(reason="innoextractor in community repo now")
     def test_generic_file_extractors_no_tests(self):
         results = {}
         data_dictionary = {"die": ["Inno Setup"], "type": ""}
@@ -60,8 +61,8 @@ class TestFileExtraInfo:
             results,
             duplicated,
         )
-        assert data_dictionary["extracted_files_tool"] == "InnoExtract"
-        assert len(data_dictionary["extracted_files"]) == 1
+        assert "InnoExtract" in data_dictionary["selfextract"].keys()
+        assert len(data_dictionary["selfextract"]["InnoExtract"]["extracted_files"]) == 1
 
     @pytest.mark.skip(reason="Not implemented yet")
     def test_batch_extract(self):
@@ -111,6 +112,7 @@ class TestFileExtraInfo:
         not (self_extraction_dir / "5b354397f6393ed777639b7d40dec3f37215dcb5078c63993e8a9703e819e2bc.inno").exists(),
         reason="Required data file is not present",
     )
+    @pytest.mark.skip(reason="innoextractor in community repo now")
     def test_Inno_extract(self):
         extracted_files = file_extra_info.Inno_extract(
             file=f"{self_extraction_dir}/5b354397f6393ed777639b7d40dec3f37215dcb5078c63993e8a9703e819e2bc.inno",
