@@ -490,7 +490,6 @@ def init_routing():
             rooter("init_rttable", routing.routing.rt_table, routing.routing.internet)
 
 
-
 def check_tcpdump_permissions():
     tcpdump = auxconf.sniffer.get("tcpdump", "/usr/bin/tcpdump")
 

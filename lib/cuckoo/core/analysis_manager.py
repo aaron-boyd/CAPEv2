@@ -6,6 +6,7 @@ import queue
 import shutil
 import threading
 from typing import Any, Callable, Generator, MutableMapping, Optional, Tuple
+
 from scapy.all import rdpcap, wrpcap
 
 from lib.cuckoo.common.cleaners_utils import free_space_monitor
@@ -21,6 +22,7 @@ from lib.cuckoo.common.exceptions import (
 from lib.cuckoo.common.integrations.parse_pe import PortableExecutable
 from lib.cuckoo.common.objects import File
 from lib.cuckoo.common.path_utils import path_delete, path_exists, path_mkdir
+from lib.cuckoo.common.polarproxy_sniffer import PolarProxySniffer, unique_tcp_packets
 from lib.cuckoo.common.utils import convert_to_printable, create_folder, get_memdump_path
 from lib.cuckoo.core.database import TASK_COMPLETED, TASK_PENDING, TASK_RUNNING, Database, Guest, Machine, Task, _Database
 from lib.cuckoo.core.guest import GuestManager
@@ -28,7 +30,6 @@ from lib.cuckoo.core.machinery_manager import MachineryManager
 from lib.cuckoo.core.plugins import RunAuxiliary
 from lib.cuckoo.core.resultserver import ResultServer
 from lib.cuckoo.core.rooter import _load_socks5_operational, rooter, vpns
-from lib.cuckoo.common.polarproxy_sniffer import PolarProxySniffer, unique_tcp_packets
 
 log = logging.getLogger(__name__)
 
@@ -596,15 +597,21 @@ class AnalysisManager(threading.Thread):
             self.log.info("Starting PolarProxy...")
             pcap_path = os.path.join(CUCKOO_ROOT, "storage", "analyses", str(self.task.id), "polarproxy-dump.pcap")
             if self.route == "polarproxy_inetsim":
-                self.polarproxy_thread = PolarProxySniffer(self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password, inetsim=routing.inetsim.server)
+                self.polarproxy_thread = PolarProxySniffer(
+                    self.log,
+                    routing.polarproxy.path,
+                    pcap_path,
+                    routing.polarproxy.cert,
+                    routing.polarproxy.password,
+                    inetsim=routing.inetsim.server,
+                )
             else:
-                self.polarproxy_thread = PolarProxySniffer(self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password)
+                self.polarproxy_thread = PolarProxySniffer(
+                    self.log, routing.polarproxy.path, pcap_path, routing.polarproxy.cert, routing.polarproxy.password
+                )
             self.polarproxy_thread.start()
             self.rooter_response = rooter(
-                "polarproxy_enable",
-                str(self.machine.ip),
-                str(self.machine.interface),
-                str(self.polarproxy_thread.listen_port)
+                "polarproxy_enable", str(self.machine.ip), str(self.machine.interface), str(self.polarproxy_thread.listen_port)
             )
 
         elif self.route == "tor":
@@ -747,10 +754,7 @@ class AnalysisManager(threading.Thread):
                 )
 
             self.rooter_response = rooter(
-                "polarproxy_disable",
-                str(self.machine.ip),
-                str(self.machine.interface),
-                str(self.polarproxy_thread.listen_port)
+                "polarproxy_disable", str(self.machine.ip), str(self.machine.interface), str(self.polarproxy_thread.listen_port)
             )
 
         elif self.route == "tor":
